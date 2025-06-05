@@ -1,4 +1,6 @@
-Question 9.1. The data for the 50 patients is stored in file “magnets.csv”.
+# Question 9.1. 
+
+The data for the 50 patients is stored in file “magnets.csv”.
 The file can be found on the internet at http://pluto.huji.ac.il/~msby/
 StatThink/Datasets/magnets.csv. Download this file to your computer and
 store it in the working directory of R. Read the content of the file into an R data
@@ -76,7 +78,9 @@ Active magnet had no outliers, while inactive placebo group has 3 outliers
 
 
 
-Question 10.1. In Subsection 10.3.2 we compare the average against the midrange as estimators of the expectation of the measurement. The goal of this
+# Question 10.1. 
+
+In Subsection 10.3.2 we compare the average against the midrange as estimators of the expectation of the measurement. The goal of this
 exercise is to repeat the analysis, but this time compare the average to the
 median as estimators of the expectation in symmetric distributions.
 
@@ -136,3 +140,213 @@ var_median <- var(sample_medians)
 mse_median <- mean((sample_medians - mu)^2)
 
 ```
+
+
+# Question 10.2. 
+
+The goal in this exercise is to assess estimation of a proportion
+in a population on the basis of the proportion in the sample.
+The file “pop2.csv” was introduced in Exercise 7.1 of Chapter 7. This file
+contains information associated to the blood pressure of an imaginary population of size 100,000. The file can be found on the internet (http://pluto.
+huji.ac.il/~msby/StatThink/Datasets/pop2.csv). One of the variables in
+the file is a factor by the name “group” that identifies levels of blood pressure.
+The levels of this variable are “HIGH”, “LOW”, and “NORMAL”.
+The file “ex2.csv” contains a sample of size n = 150 taken from the given
+population. This file can also be found on the internet (http://pluto.huji.
+ac.il/~msby/StatThink/Datasets/ex2.csv). It contains the same variables
+as in the file “pop2.csv”. The file “ex2.csv” corresponds in this exercise to
+the observed sample and the file “pop2.csv” corresponds to the unobserved
+population.
+Download both files to your computer and answer the following questions:
+
+
+1. Compute the proportion in the sample of those with a high level of blood
+pressure16
+
+```{r}
+
+pop2 <- read.csv("C:\\Users\\ds3\\Downloads\\pop2.csv")
+head(pop2)
+
+ex2 <- read.csv("C:\\Users\\ds3\\Downloads\\ex2.csv")
+head(ex2)
+
+
+high_bp <- filter(ex2, group == "HIGH") |> nrow()
+total_sample <- filter(ex2, group %in% c("HIGH", "LOW", "NORMAL")) |> nrow()
+high_bp / total_sample
+# 0.2466667
+
+```
+
+2. Compute the proportion in the population of those with a high level of
+blood pressure.
+
+```{r}
+
+high_bp_pop <- filter(pop2, group == "HIGH") |> nrow()
+total_pop <- filter(pop2, group %in% c("HIGH", "LOW", "NORMAL")) |> nrow()
+high_bp_pop / total_pop
+# 0.28126
+
+```
+
+3. Simulate the sampling distribution of the sample proportion and compute
+its expectation.
+
+```{r}
+
+
+sample_proportions <- replicate(
+  1e5,
+  {
+    sample_data <- sample_n(pop2, 150)
+    group_column <- pull(sample_data, group)
+    mean(group_column == "HIGH")
+  }
+)
+
+mean(sample_proportions)
+# 0.2812202
+
+```
+
+4. Compute the variance of the sample proportion.
+
+```{r}
+
+var(sample_proportions)
+# 0.001335008
+
+```
+
+5. It is proposed in Section 10.5 that the variance of the sample proportion
+is Var(Pˆ) = p(1 − p)/n, where p is the probability of the event (having a
+high blood pressure in our case) and n is the sample size (n = 150 in our
+case). Examine this proposal in the current setting.
+
+```{r}
+
+p <- 0.2812202
+n <- 150
+
+theoretical_var <- p * (1 - p) / n
+theoretical_var
+# 0.001347569
+
+```
+
+
+# Question 2.2. 
+
+Heart transplants, Part II. Exercise 1.50 introduces the Stanford Heart Transplant Study.
+Of the 34 patients in the control group, 4 were alive at the end of the study. Of the 69 patients in
+the treatment group, 24 were alive. The contingency table below summarizes these results.
+Group
+Control Treatment Total
+Alive 4 24 28 Outcome Dead 30 45 75
+Total 34 69 103
+
+(a) What proportion of patients in the treatment group and what proportion of patients in the
+control group died?
+
+45/69
+30/34
+
+(b) One approach for investigating whether or not the treatment is effective is to use a randomization technique.
+i. What are the claims being tested? Use the same null and alternative hypothesis notation
+used in the section.
+
+Null Hypothesis (H0): The treatment has no effect --> pc = pt
+Alternative Hypothesis (Ha): The treatment is effective --> pc > pt
+
+ii. The paragraph below describes the set up for such approach, if we were to do it without using statistical software. Fill in the blanks with a number or phrase, whichever is
+appropriate.
+We write alive __28__on cards representing patients who were alive at
+the end of the study, and dead on __75___ cards representing patients
+who were not. Then, we shuffle these cards and split them into two groups:
+one group of size __64__representing treatment, and another group of
+size __34__representing control. We calculate the difference between
+the proportion of dead cards in the treatment and control groups (treatment -
+control) and record this value. We repeat this many times to build a distribution
+centered at pt-pc=0. Lastly, we calculate the fraction of simulations where
+the simulated differences in proportions are pt-pc>0. If this fraction is low,
+we conclude that it is unlikely to have observed such an outcome by chance and
+that the null hypothesis should be rejected in favor of the alternative.
+
+iii. What do the simulation results shown below suggest about the effectiveness of the transplant program?
+
+41/99 show that the treatment was effective. Fail to reject the null hypothesis.
+
+
+# Question 2.6 
+
+Is yawning contagious, Part I. An experiment conducted by the MythBusters, a science
+entertainment TV program on the Discovery Channel, tested if a person can be subconsciously
+influenced into yawning if another person near them yawns. 50 people were randomly assigned to
+two groups: 34 to a group where a person near them yawned (treatment) and 16 to a group where
+there wasn’t a person yawning near them (control). 
+
+The following table shows the results of this experiment.
+
+Group
+Treatment Control Total
+Result Yawn 10 4 14
+Not Yawn 24 12 36
+Total 34 16 50
+
+A simulation was conducted to understand the distribution of the test statistic under the assumption of independence: having someone yawn near another person has no influence on if the other
+person will yawn. In order to conduct the simulation, a researcher wrote yawn on 14 index cards
+and not yawn on 36 index cards to indicate whether or not a person yawned. Then he shuffled
+the cards and dealt them into two groups of size 34 and 16 for treatment and control, respectively.
+He counted how many participants in each simulated group yawned in an apparent response to a
+nearby yawning person, and calculated the difference between the simulated proportions of yawning as ˆptrtmt,sim − pˆctrl,sim. This simulation was repeated 10,000 times using software to obtain
+10,000 differences that are due to chance alone. The histogram shows the distribution of the
+simulated differences.
+
+(a) What are the hypotheses?
+
+Null Hypothesis (H0): Yawning is not contagious --> pt = pc
+Alternative Hypothesis (Ha): The treatment is effective --> pc < pt
+
+(b) Calculate the observed difference between the yawning rates under the two scenarios.
+
+10/34 - 4/16
+
+
+(c) Estimate the p-value using the figure above and determine the conclusion of the hypothesis
+test.
+
+```{r}
+
+result <- 0.001 + 0.02 + 0.07 + 0.17 + 0.245 + 0.24 + 0.155 + 0.065 + 0.025 + 0.01 + 0.0005
+result
+
+result <- 0.24 + 0.155 + 0.065 + 0.025 + 0.01 + 0.0005
+result
+
+```
+
+We do not have enough evidence to prove that yawning is contageous
+
+
+# Question 3.1 
+
+Vegetarian college students. Suppose that 8% of college students are vegetarians. Determine if the following statements are true or false, and explain your reasoning.
+(a) The distribution of the sample proportions of vegetarians in random samples of size 60 is
+approximately normal since n ≥ 30.
+
+False - it does not meet the second condition of np>=10 or n(1-p)>=10
+
+(b) The distribution of the sample proportions of vegetarian college students in random samples
+of size 50 is right skewed.
+
+True - it is right skewed 
+
+(c) A random sample of 125 college students where 12% are vegetarians would be considered
+unusual.
+
+(d) A random sample of 250 college students where 12% are vegetarians would be considered
+unusual.
+(e) The standard error would be reduced by one-half if we increased the sample size from 125
+to 250.
