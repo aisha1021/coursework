@@ -1,0 +1,126 @@
+# Question 5.20 
+
+Body measurements, Part III. Exercise 5.13 introduces data on shoulder girth and
+height of a group of individuals. The mean shoulder girth is 108.20 cm with a standard deviation
+of 10.37 cm. The mean height is 171.14 cm with a standard deviation of 9.41 cm. The correlation
+between height and shoulder girth is 0.67.
+
+(a) Write the equation of the regression line for predicting height.
+
+slope = r * (sy/sx)
+slope = 0.67 * (9.41/10.37)
+
+b = y - mx
+b = 171.14 - slope(108.20)
+
+```{r}
+
+slope <- 0.67 * 9.41 / 10.37
+slope
+# 0.6079749
+
+intercept <- 171.14 - slope * 108.20
+intercept
+# 105.3571
+
+```
+
+y = 0.6079749x + 105.3571
+
+(b) Interpret the slope and the intercept in this context.
+
+The slope means that for every cm increase in shoulder girth, height will increase 
+~0.6079 cm. 
+
+(c) Calculate R^2 of the regression line for predicting height from shoulder girth, and interpret it
+in the context of the application.
+
+```{r}
+
+r_squared <- slope ^ 2
+r_squared
+
+```
+
+The R^2 is 0.3696335 which indicates that ~37% of the variability in height can be explained
+by shoulder girth.
+
+(d) A randomly selected student from your class has a shoulder girth of 100 cm. Predict the height
+of this student using the model.
+
+```{r}
+
+predicted_girth <- 0.6079749 * 100 + 105.3571
+predicted_girth
+#  166.1546 cm
+
+```
+
+(e) The student from part (d) is 160 cm tall. Calculate the residual, and explain what this residual
+means.
+
+```{r}
+
+residual <- intercept - predicted_girth
+residual
+# -60.79748 cm
+
+```
+The residual means that the actual height of the person is ~60.8 cm shorter than the
+predicted height based on the shoulder girth of 100 cm.
+
+
+(f) A one year old has a shoulder girth of 56 cm. Would it be appropriate to use this linear model
+to predict the height of this child?
+
+No, it would not make sense becuase the sample is taken within a certain
+range (likely for adults) and therefore a child with a small girth would not
+be appropriate to fit into this model. 
+
+
+
+# Question 5.29 
+
+Body measurements, Part IV. The scatterplot and least squares summary below show
+the relationship between weight measured in kilograms and height measured in centimeters of 507
+physically active individuals.
+
+Estimate Std. Error t value Pr(>|t|)
+(Intercept) -105.0113 7.5394 -13.93 0.0000
+height 1.0176 0.0440 23.13 0.0000
+
+(a) Describe the relationship between height and weight.
+
+There is a strong, positive linear correlation between height and weight.
+
+(b) Write the equation of the regression line. Interpret the slope and intercept in context.
+
+weight = 1.0176x - 105.0113
+
+The intercept is the predicted weight when height is 0. The slope means that for
+every cm in height, weight will increase by 1.0176 kg. 
+
+
+(c) Do the data provide strong evidence that an increase in height is associated with an increase
+in weight? State the null and alternative hypotheses, report the p-value, and state your
+conclusion.
+
+Ho = There is no relationship between height and weight
+Ha = There is a relationship between height and weight
+
+The p-value is ~0 meaning that we can reject the null hypothesis and conclude
+that there is a relationship between height and weight.
+
+(d) The correlation coefficient for height and weight is 0.72. Calculate R^2
+and interpret it in context.
+
+```{r}
+
+r_sqrd <- 0.72 ^ 2
+r_sqrd
+# 0.5184
+
+```
+
+About 51.84% of the variability in weight can be explained by 
+height using the regression model.
