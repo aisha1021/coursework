@@ -41,7 +41,9 @@ expression “change[30:50]”.)
 magnets <- read.csv("C:\\Users\\ds3\\Downloads\\magnets.csv")
 
 magnets |> slice(1:29) |> pull(change) |> mean()
+# 5.241379
 magnets |> slice(30:50) |> pull(change) |> mean()
+# 1.095238
 
 ```
 
@@ -52,7 +54,9 @@ patients that received and active magnet and the sample standard deviation for t
 ```{r}
 
 magnets |> slice(1:29) |> pull(change) |> sd()
+# 3.236568
 magnets |> slice(30:50) |> pull(change) |> sd()
+# 1.578124
 
 ```
 
@@ -350,3 +354,56 @@ unusual.
 unusual.
 (e) The standard error would be reduced by one-half if we increased the sample size from 125
 to 250.
+
+
+# Question 9.2. 
+
+In Chapter 13 we will present a statistical test for testing if
+there is a difference between the patients that received the active magnets and
+the patients that received the inactive placebo in terms of the expected value
+of the variable that measures the change. The test statist for this problem is
+taken to be
+
+(x̄1 - x̄2) / √(S²1/29 + S²2/21)
+
+
+where x̄1 and x̄2 are the sample variances for each of the two samples. Our
+goal is to investigate the sampling distribution of this statistic in a case where
+both expectations are equal to each other and to compare this distribution to
+the observed value of the statistic.
+
+1. Assume that the expectation of the measurement is equal to 3.5, regardless of what the type of treatment that the patient received. We take the
+standard deviation of the measurement for patients the receives an active
+magnet to be equal to 3 and for those that received the inactive placebo
+we take it to be equal to 1.5. Assume that the distribution of the measurements is Normal and there are 29 patients in the first group and 21 in the
+second. Find the interval that contains 95% of the sampling distribution
+of the statistic.
+
+```{r}
+
+std_error <- sqrt((3^2 / 29) + (1.5^2 / 21))
+z_val <- qnorm(0.975)
+LB <- -z_val * std_error
+UB <- z_val * std_error
+LB # -1.266397
+UB # 1.266397
+
+```
+
+
+2. Does the observed value of the statistic, computed for the data frame
+“magnets”, falls inside or outside of the interval that is computed in 1?
+
+```{r}
+
+x_bar1 <- 5.241379
+x_bar2 <- 1.095238
+
+obs_stat <- (x_bar1 - x_bar2) / std_error
+obs_stat
+# 6.416855
+
+```
+
+The statistics falls outside of the interval and therefor indicates that it is satistically 
+significant (lies outside of 95% indicating alpha=0.05) and that we can reject the null hypothsis.
