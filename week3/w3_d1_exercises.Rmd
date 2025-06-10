@@ -1,0 +1,238 @@
+
+# Question 5.29
+
+See if you can reproduce the table in ISRS 5.29 using the original dataset in body.dat.txt.
+
+```{r}
+
+body_data <- read.table("C:\\Users\\ds3\\coursework\\week3\\body.dat.txt", header = FALSE)
+head(body_data)
+
+colnames(body_data)[c(23, 24)] <- c("weight", "height")
+
+model <- lm(weight ~ height, data = body_data)
+summary(model)
+
+# Coefficients:
+#               Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) -105.01125    7.53941  -13.93   <2e-16 ***
+# height         1.01762    0.04399   23.14   <2e-16 ***
+
+```
+
+# Question 6.1 
+
+Baby weights, Part I. The Child Health and Development Studies investigate a range of
+topics. One study considered all pregnancies between 1960 and 1967 among women in the Kaiser
+Foundation Health Plan in the San Francisco East Bay area. Here, we study the relationship
+between smoking and weight of the baby. The variable smoke is coded 1 if the mother is a
+smoker, and 0 if not. The summary table below shows the results of a linear regression model for
+predicting the average birth weight of babies, measured in ounces, based on the smoking status of
+the mother.
+
+Estimate Std. Error t value Pr(>|t|)
+(Intercept) 123.05 0.65 189.60 0.0000
+smoke -8.94 1.03 -8.65 0.0000
+
+The variability within the smokers and non-smokers are about equal and the distributions are
+symmetric. With these conditions satisfied, it is reasonable to apply the model. (Note that we
+don’t need to check linearity since the predictor has only two levels.)
+
+```{r}
+
+birth_weight_data <- read.table("C:\\Users\\ds3\\coursework\\week3\\babyweights.txt")
+head(birth_weight_data)
+
+model <- lm(bwt ~ smoke, data = birth_weight_data)
+summary(model)
+
+# Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)
+# (Intercept)  123.047      0.649 189.597   <2e-16 ***
+# smoke         -8.938      1.033  -8.653   <2e-16 ***
+
+```
+
+(a) Write the equation of the regression line.
+
+y = -8.94x + 123.05
+
+(b) Interpret the slope in this context, and calculate the predicted birth weight of babies born to
+smoker and non-smoker mothers.
+
+The slope indicates that babies born to smokers weigh 8.94 oz less than those 
+born to non-smokers.
+
+Smoker:
+```{r}
+predicted_weight_sm <- -8.94 * 1 + 123.05
+predicted_weight_sm
+# 114.11
+```
+
+Non-smoker
+```{r}
+predicted_weight_ns <- -8.94 * 0 + 123.05
+predicted_weight_ns
+# 123.05
+```
+
+
+(c) Is there a statistically significant relationship between the average birth weight and smoking?
+
+The p-value is ~0 meaning that the relationship between smoking 
+and birth weight is statistically significant.
+
+
+# Question 6.2 
+
+Baby weights, Part II. Exercise 6.1 introduces a data set on birth weight of babies.
+Another variable we consider is parity, which is 0 if the child is the first born, and 1 otherwise.
+The summary table below shows the results of a linear regression model for predicting the average
+birth weight of babies, measured in ounces, from parity.
+
+Estimate Std. Error t value Pr(>|t|)
+(Intercept) 120.07 0.60 199.94 0.0000
+parity -1.93 1.19 -1.62 0.1052
+
+```{r}
+
+birth_weight_data <- read.table("C:\\Users\\ds3\\coursework\\week3\\babyweights.txt")
+head(birth_weight_data)
+
+model <- lm(bwt ~ parity, data = birth_weight_data)
+summary(model)
+
+# Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) 120.0684     0.6005 199.942   <2e-16 ***
+# parity       -1.9287     1.1895  -1.621    0.105   
+
+```
+
+(a) Write the equation of the regression line.
+
+y = -1.9287x + 120.0684
+
+(b) Interpret the slope in this context, and calculate the predicted birth weight of first borns and
+others.
+
+The slope indicates that babies that are not firstborn weigh 1.9287 oz less than
+firstborn babies on average. 
+
+Firstborn:
+```{r}
+predicted_weight_f <- -1.9287 * 0 + 120.0684
+predicted_weight_f
+# 120.0684
+```
+
+Non-firstborn
+```{r}
+predicted_weight_nf <- -1.9287 * 1 + 120.0684
+predicted_weight_nf
+# 118.1397
+```
+
+(c) Is there a statistically significant relationship between the average birth weight and parity?
+
+The p-value is greater than 0.1 indicating that there is not enough evidence 
+to conclude that there is a statistically significant relationship between
+parity and birth weight. 
+
+
+# Question 6.3 
+
+Baby weights, Part III. We considered the variables smoke and parity, one at a time, in
+modeling birth weights of babies in Exercises 6.1 and 6.2. A more realistic approach to modeling
+infant weights is to consider all possibly related variables at once. Other variables of interest
+include length of pregnancy in days (gestation), mother’s age in years (age), mother’s height in
+inches (height), and mother’s pregnancy weight in pounds (weight). Below are three observations
+from this data set.
+
+bwt gestation parity age height weight smoke
+1 120 284 0 27 62 100 0
+2 113 282 0 33 64 135 0
+.. .. .. .. .. .. .. ..
+1236 117 297 0 38 65 129 0
+
+The summary table below shows the results of a regression model for predicting the average birth
+weight of babies based on all of the variables included in the data set.
+
+Estimate Std. Error t value Pr(>|t|)
+(Intercept) -80.41 14.35 -5.60 0.0000
+gestation 0.44 0.03 15.26 0.0000
+parity -3.33 1.13 -2.95 0.0033
+age -0.01 0.09 -0.10 0.9170
+height 1.15 0.21 5.63 0.0000
+weight 0.05 0.03 1.99 0.0471
+smoke -8.40 0.95 -8.81 0.0000
+
+```{r}
+
+model_full <- lm(bwt ~ gestation + parity + age + height + weight + smoke, data = birth_weight_data)
+summary(model_full)
+
+# Coefficients:
+#              Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) -80.41085   14.34657  -5.605 2.60e-08 ***
+# gestation     0.44398    0.02910  15.258  < 2e-16 ***
+# parity       -3.32720    1.12895  -2.947  0.00327 ** 
+# age          -0.00895    0.08582  -0.104  0.91696
+# height        1.15402    0.20502   5.629 2.27e-08 ***
+# weight        0.05017    0.02524   1.987  0.04711 *
+# smoke        -8.40073    0.95382  -8.807  < 2e-16 **
+
+```
+
+(a) Write the equation of the regression line that includes all of the variables.
+
+bwt = −80.41 + (0.44 * gestation) − (3.33 * parity) − (0.01 * age) + (1.15 * height) + (0.05 * weight) − (8.40 * smoke)
+
+(b) Interpret the slopes of gestation and age in this context.
+
+gestation: For each additional day of pregnancy, the birth weight increases by 0.44 oz.
+age: For each additional year of the mother's age, the birth weight decreases by
+     0.01 oz.
+
+(c) The coefficient for parity is different than in the linear model shown in Exercise 6.2. Why
+might there be a difference?
+
+Before, parity was the only predictor. Now there are other variables in play and therefore
+the effect of the parity variable is adjusted. 
+
+(d) Calculate the residual for the first observation in the data set.
+
+```{r}
+
+predicted_first <- predict(model_full, newdata = birth_weight_data[1, ])
+actual_first <- birth_weight_data$bwt[1]
+
+residual_first <- actual_first - predicted_first
+residual_first
+# -2.003102
+
+```
+
+
+(e) The variance of the residuals is 249.28, and the variance of the birth weights of all babies
+in the data set is 332.57. Calculate the R^2 and the adjusted R^2
+. Note that there are 1,236
+observations in the data set.
+
+```{r}
+
+residuals_var <- var(resid(model_full))
+total_var <- var(birth_weight_data$bwt)
+
+r_squared <- 1 - (residuals_var / total_var)
+r_squared
+# 0.2504296
+
+n <- nrow(birth_weight_data)
+k <- length(model_full$coefficients) - 1
+adj_r_squared <- 1 - ((1 - r_squared) * (n - 1) / (n - k - 1))
+adj_r_squared
+# 0.2467702
+
+```
