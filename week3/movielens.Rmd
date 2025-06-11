@@ -22,7 +22,7 @@ theme_set(theme_bw())
 
 Read data from the `ratings.csv` file
 ```{r load-data}
-ratings <- read_csv('ratings.csv',
+ratings <- read_csv('week3/ratings.csv',
                     col_names = c('user_id','movie_id','rating','timestamp'))
 ```
 
@@ -35,6 +35,15 @@ head(ratings) %>% kable()
 
 ```{r dist-ratings}
 # plot the distribution of rating values https://speakerdeck.com/jhofman/modeling-social-data-lecture-2-introduction-to-counting?slide=26
+
+head(ratings)
+ratings |>
+  count(rating) |>
+  ggplot(aes(x = rating, y = n)) +
+  geom_col() +
+  xlab("Rating") +
+  ylab("Number of Ratings")
+
 ```
 
 ## Per-movie stats
@@ -42,16 +51,40 @@ head(ratings) %>% kable()
 ```{r aggregate-by-movie}
 # aggregate ratings by movie, computing mean rating and number of ratings
 # hint: use the n() function for easy counting within a group
+
+ratings |>
+  group_by(movie_id) |>
+  summarize(mean(rating), n())
+
 ```
 
 ```{r dist-movie-popularity}
 # plot distribution of movie popularity (= number of ratings the movie received)
 # hint: try scale_x_log10() for a logarithmic x axis
+
+ratings |>
+  group_by(movie_id) |>
+  summarize(mean_rating = mean(rating), count = n()) |>
+  ggplot(aes(x = count)) +
+  geom_histogram(bins = 30) +
+  scale_x_log10() +
+  xlab("Movies") +
+  ylab("Number of Ratings")
+
+
 ```
 
 ```{r dist-mean-ratings-by-movie}
 # plot distribution of mean ratings by movie https://speakerdeck.com/jhofman/modeling-social-data-lecture-2-introduction-to-counting?slide=28
 # hint: try geom_histogram and geom_density
+
+ratings |>
+  group_by(movie_id) |>
+  summarize(mean_rating = mean(rating), count = n()) |>
+  ggplot(aes(x = mean_rating)) +
+  geom_histogram(bins = 30) +
+  scale_x_log10()
+
 ```
 
 ```{r cdf-movie-pop}
@@ -60,6 +93,18 @@ head(ratings) %>% kable()
 # store the result in a new data frame so you can use it in creating figure 2 from the paper below
 
 # plot the CDF of movie popularity
+
+ratings |>
+  group_by(movie_id) |>
+  summarize(mean_rating = mean(rating), count = n()) |>
+  arrange(desc(count)) |>
+  mutate(avg_cumsum = cumsum(count) / sum(count)) |>
+  mutate(rank = row_number()) |>
+  ggplot(aes(x = rank, y = avg_cumsum)) +
+  geom_line() +
+  xlab("Rank") +
+  ylab("Cumulative Property")
+
 ```
 
 
@@ -67,11 +112,24 @@ head(ratings) %>% kable()
 
 ```{r aggregate-by-user}
 # aggregate ratings by user, computing mean and number of ratings
+
+ratings |> 
+  group_by(user_id) |>
+  summarize(mean(rating), n())
+
 ```
 
 ```{r dist-user-activity}
 # plot distribution of user activity (= number of ratings the user made)
 # hint: try a log scale here
+
+ratings |> 
+  group_by(user_id) |>
+  summarize(mean = mean(rating), count = n()) |>
+  ggplot(aes(x = user_id)) +
+  geom_histogram(bins = 30) +
+  scale_x_log10()
+
 ```
 
 # Anatomy of the long tail
@@ -91,4 +149,11 @@ head(ratings) %>% kable()
 # paper, produce one curve for the 100% user satisfaction level and
 # another for 90%---do not, however, bother implementing the null
 # model (shown in the dashed lines).
+
+ratings |> 
+  group_by(user_id) |>
+  mutate(count = n()) |>
+  filter(count >= 10) |>
+  count(movie_id, sort = TRUE)
+
 ```
