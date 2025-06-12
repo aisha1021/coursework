@@ -150,10 +150,111 @@ ratings |>
 # another for 90%---do not, however, bother implementing the null
 # model (shown in the dashed lines).
 
-ratings |> 
+
+library(dplyr)
+
+movies_ranked <- ratings |>
+  group_by(movie_id) |>
+  count() |>
+  ungroup() |>
+  arrange(desc(n)) |>
+  mutate(rank = row_number())
+
+rankings_to_user <- left_join(ratings, movies_ranked, by = "movie_id")
+
+user_max_rank <- rankings_to_user |>
   group_by(user_id) |>
-  mutate(count = n()) |>
-  filter(count >= 10) |>
-  count(movie_id, sort = TRUE)
+  summarize(max_rank = max(rank)) |>
+  arrange(max_rank)
+
+all_k <- user_max_rank |> pull(max_rank) |> max()
+satisfaction_100 <- data.frame(k = 1:all_k)
+frac_satisfied <- cumsum(tabulate(user_max_rank$max_rank, nbins = all_k)) / nrow(user_max_rank)
+satisfaction_100$frac_satisfied <- frac_satisfied
+
+library(ggplot2)
+
+ggplot(satisfaction_100, aes(x = k, y = frac_satisfied)) +
+  geom_line() +
+  labs(
+    x = "Inventory size (top-k movies)",
+    y = "Fraction of users 100% satisfied",
+    title = "100% User Satisfaction Curve"
+  ) +
+  theme_minimal()
+
+rank_90th <- quantile(user_max_rank$max_rank, 0.9)
+
+satisfaction_90 <- data.frame(k = 1:rank_90th)
+frac_satisfied_90 <- sapply(1:rank_90th, function(k) {
+  sum(user_max_rank$max_rank <= k & user_max_rank$max_rank <= rank_90th) / nrow(user_max_rank)
+})
+
+satisfaction_90$frac_satisfied_90 <- frac_satisfied_90
+
+ggplot(satisfaction_90, aes(x = k, y = frac_satisfied_90)) +
+  geom_line() +
+  labs(
+    x = "Inventory size (top-k movies)",
+    y = "Fraction of users 90% satisfied",
+    title = "90% User Satisfaction Curve"
+  ) +
+  theme_minimal()
 
 ```
+
+
+```{r}
+
+# movies_ranked <- ratings |>
+#   group_by(movie_id) |>
+#   count() |>
+#   ungroup() |>
+#   arrange(desc(n)) |>
+#   mutate(rank = row_number())
+
+# ranks_to_user <- left_join(ratings, movies_ranked, by = "movie_id")
+# ranks_to_user
+
+# results <- data.frame()
+# inventory_sizes <- 1:10677
+
+# for (k in inventory_sizes) {
+#   top_k_ratings <- ranks_to_user |>
+#     filter(rank <= k)
+
+#   user_top_k <- top_k_ratings |>
+#     count(user_id, name = "top_k_count")
+
+#   user_total <- ranks_to_user |>
+#     count(user_id, name = "total_count") |>
+#     filter(total_count >= 10)
+
+#   user_stats <- left_join(user_total, user_top_k, by = "user_id") |>
+#     mutate(top_k_count = coalesce(top_k_count, 0))
+
+#   final_user_stats <- user_stats |>
+#     mutate(ratio = top_k_count / total_count, sat_100 = as.integer(ratio == 1), sat_90  = as.integer(ratio >= 0.9))
+
+#   avg_100 <- mean(final_user_stats$sat_100)
+#   avg_90  <- mean(final_user_stats$sat_90)
+
+#   results <- rbind(results, data.frame(k = k, frac_100 = avg_100, frac_90 = avg_90))
+# }
+
+# library(ggplot2)
+
+# ggplot(results, aes(x = k)) +
+#   geom_line(aes(y = frac_100, color = "100% Satisfied")) +
+#   geom_line(aes(y = frac_90, color = "90% Satisfied")) +
+#   labs(
+#     title = "User Satisfaction vs Inventory Size",
+#     x = "Inventory Size (k)",
+#     y = "Fraction of Users Satisfied",
+#     color = "Satisfaction Level"
+#   ) +
+#   theme_minimal()
+
+
+```
+
