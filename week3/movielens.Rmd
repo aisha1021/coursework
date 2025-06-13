@@ -159,52 +159,63 @@ movies_ranked <- ratings |>
   ungroup() |>
   arrange(desc(n)) |>
   mutate(rank = row_number())
+movies_ranked
 
-rankings_to_user <- left_join(ratings, movies_ranked, by = "movie_id")
+rankings_to_user <- left_join(ratings, movies_ranked, by = "movie_id") |> arrange(rank)
+rankings_to_user
+
+total_number_of_users = n_distinct(ratings$user_id)
+
+
+# 100% Percent Satisfaction
 
 user_max_rank <- rankings_to_user |>
   group_by(user_id) |>
   summarize(max_rank = max(rank)) |>
   arrange(max_rank)
+user_max_rank
 
-all_k <- user_max_rank |> pull(max_rank) |> max()
-satisfaction_100 <- data.frame(k = 1:all_k)
-frac_satisfied <- cumsum(tabulate(user_max_rank$max_rank, nbins = all_k)) / nrow(user_max_rank)
-satisfaction_100$frac_satisfied <- frac_satisfied
+user_max_rank_count <- user_max_rank |>
+  group_by(max_rank) |>
+  summarize(num_users = n())
+user_max_rank_count
 
-library(ggplot2)
+statisfied_100 <- user_max_rank_count |>
+  mutate(cum_total_100 = cumsum(num_users), statisfied_frac_100 = cum_total_100 / total_number_of_users)
+statisfied_100
 
-ggplot(satisfaction_100, aes(x = k, y = frac_satisfied)) +
-  geom_line() +
-  labs(
-    x = "Inventory size (top-k movies)",
-    y = "Fraction of users 100% satisfied",
-    title = "100% User Satisfaction Curve"
-  ) +
-  theme_minimal()
+statisfied_100 |>
+  ggplot(aes(x = max_rank, y = statisfied_frac_100)) +
+  geom_line()
+ 
 
-rank_90th <- quantile(user_max_rank$max_rank, 0.9)
+# 90% Percent Satisfaction
 
-satisfaction_90 <- data.frame(k = 1:rank_90th)
-frac_satisfied_90 <- sapply(1:rank_90th, function(k) {
-  sum(user_max_rank$max_rank <= k & user_max_rank$max_rank <= rank_90th) / nrow(user_max_rank)
-})
+rankings_to_user
 
-satisfaction_90$frac_satisfied_90 <- frac_satisfied_90
+user_90_rank <- rankings_to_user |>
+  group_by(user_id) |>
+  summarize(rank_90 = quantile(rank, 0.9)) |>
+  arrange(rank_90)
+user_90_rank
 
-ggplot(satisfaction_90, aes(x = k, y = frac_satisfied_90)) +
-  geom_line() +
-  labs(
-    x = "Inventory size (top-k movies)",
-    y = "Fraction of users 90% satisfied",
-    title = "90% User Satisfaction Curve"
-  ) +
-  theme_minimal()
+user_90_rank_count <- user_90_rank |>
+  group_by(rank_90) |>
+  summarize(num_users = n())
+user_90_rank_count
+
+statisfied_90 <- user_90_rank_count |>
+  mutate(cum_total_90 = cumsum(num_users), statisfied_frac_90 = cum_total_90 / total_number_of_users)
+statisfied_90
+
+statisfied_90 |>
+  ggplot(aes(x = rank_90, y = statisfied_frac_90)) +
+  geom_line()
 
 ```
 
 
-```{r}
+```{r long-tail-testing}
 
 # movies_ranked <- ratings |>
 #   group_by(movie_id) |>
@@ -255,6 +266,55 @@ ggplot(satisfaction_90, aes(x = k, y = frac_satisfied_90)) +
 #   ) +
 #   theme_minimal()
 
+
+
+# movies_ranked <- ratings |>
+#   group_by(movie_id) |>
+#   count() |>
+#   ungroup() |>
+#   arrange(desc(n)) |>
+#   mutate(rank = row_number())
+
+# rankings_to_user <- left_join(ratings, movies_ranked, by = "movie_id")
+
+# user_max_rank <- rankings_to_user |>
+#   group_by(user_id) |>
+#   summarize(max_rank = max(rank)) |>
+#   arrange(max_rank)
+
+# all_k <- user_max_rank |> pull(max_rank) |> max()
+# satisfaction_100 <- data.frame(k = 1:all_k)
+# frac_satisfied <- cumsum(tabulate(user_max_rank$max_rank, nbins = all_k)) / nrow(user_max_rank)
+# satisfaction_100$frac_satisfied <- frac_satisfied
+
+# library(ggplot2)
+
+# ggplot(satisfaction_100, aes(x = k, y = frac_satisfied)) +
+#   geom_line() +
+#   labs(
+#     x = "Inventory size (top-k movies)",
+#     y = "Fraction of users 100% satisfied",
+#     title = "100% User Satisfaction Curve"
+#   ) +
+#   theme_minimal()
+
+# rank_90th <- quantile(user_max_rank$max_rank, 0.9)
+
+# satisfaction_90 <- data.frame(k = 1:rank_90th)
+# frac_satisfied_90 <- sapply(1:rank_90th, function(k) {
+#   sum(user_max_rank$max_rank <= k & user_max_rank$max_rank <= rank_90th) / nrow(user_max_rank)
+# })
+
+# satisfaction_90$frac_satisfied_90 <- frac_satisfied_90
+
+# ggplot(satisfaction_90, aes(x = k, y = frac_satisfied_90)) +
+#   geom_line() +
+#   labs(
+#     x = "Inventory size (top-k movies)",
+#     y = "Fraction of users 90% satisfied",
+#     title = "90% User Satisfaction Curve"
+#   ) +
+#   theme_minimal()
 
 ```
 
