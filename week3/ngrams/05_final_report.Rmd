@@ -281,7 +281,7 @@ a line to show the trend using `geom_smooth()`.
 half_life_df |>
   ggplot(aes(x = as.numeric(term), y = half_life)) +
   geom_point() +
-  geom_smooth(method = "loess", span = 0.2, se = FALSE)
+  geom_smooth()
 
 ```
 
