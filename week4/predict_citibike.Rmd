@@ -1,0 +1,681 @@
+```{r}
+
+library(tidyverse)
+library(scales)
+library(modelr)
+library(rsample)
+
+
+theme_set(theme_bw())
+options(repr.plot.width=4, repr.plot.height=3)
+
+```
+
+# DATA PRE-PROCESSING
+
+```{r}
+
+trips_per_day <- read_tsv('C:\\Users\\ds3\\coursework\\week4\\trips_per_day.tsv')
+head(trips_per_day)
+
+# Convert the ymd column to Date type if it is not already
+trips_per_day$ymd <- as.Date(trips_per_day$ymd)
+
+# Extract Day of the Week
+trips_per_day$day_of_week <- weekdays(trips_per_day$ymd)
+
+# Extract Month
+trips_per_day$month <- format(trips_per_day$ymd, "%m")
+
+# Extract Week of the Year
+trips_per_day$week_of_year <- format(trips_per_day$ymd, "%U")
+
+# View the data with the new features
+head(trips_per_day)
+
+
+```
+
+
+```{r}
+
+# library(dplyr)
+
+# # Randomly sample 10% for testing
+# set.seed(123) # for reproducibility
+# trips_per_day_test <- trips_per_day %>% sample_frac(0.10)
+
+# # Use the rest for training
+# trips_per_day_train <- anti_join(trips_per_day, trips_per_day_test)
+
+# num_days <- nrow(trips_per_day)
+# frac_train <- 0.8
+# num_train <- floor(num_days * frac_train)
+
+# # randomly sample rows for the training set 
+# ndx <- sample(1:num_days, num_train, replace=F)
+
+# # used to fit the model
+# trips_per_day_train <- trips_per_day[ndx, ]
+
+# # used to evaluate the fit
+# trips_per_day_validate <- trips_per_day[-ndx, ]
+
+
+#########
+
+# library(dplyr)
+
+# # Randomly sample 10% for testing
+# set.seed(123) # for reproducibility
+trips_per_day_test <- trips_per_day %>% sample_frac(0.10)
+
+# The rest will be used for training + validation (90%)
+remaining_data <- anti_join(trips_per_day, trips_per_day_test)
+
+# Now split remaining data into 90% for training, 10% for validation
+trips_per_day_train <- remaining_data %>% sample_frac(0.90)
+trips_per_day_validation <- anti_join(remaining_data, trips_per_day_train)
+
+#####
+
+# # Randomly sample 10% for testing
+# # set.seed(123)
+# trips_per_day_test <- trips_per_day %>% sample_frac(0.10)
+ 
+# # Use the rest for training
+# trips_per_day_not_test <- anti_join(trips_per_day, trips_per_day_test)
+ 
+# #
+# num_days <- nrow(trips_per_day_not_test)
+# frac_train <- 0.9
+# num_train <- floor(num_days * frac_train)
+ 
+ 
+# # randomly sample rows for the training set
+# ndx <- sample(1:num_days, num_train, replace=F)
+ 
+# # used to fit the model
+# trips_per_day_train <- trips_per_day_not_test[ndx, ]
+ 
+# # used to evaluate the fit
+# trips_per_day_validate <- trips_per_day_not_test[-ndx, ]
+ 
+
+```
+
+
+# K-FOLD TESTING + ADDITIONAL TESTING
+
+```{r}
+
+set.seed(42)
+
+# fit a model for each polynomial degree
+K <- 1:16
+train_err <- c()
+validate_err <- c()
+for (k in K) {
+  
+    # fit on the training data
+    model <- lm(num_trips ~ poly(tmax, k, raw = T), data=trips_per_day_train)
+    
+    # evaluate on the training data
+    train_err[k] <- sqrt(mean((predict(model, trips_per_day_train) - trips_per_day_train$num_trips)^2))
+
+    # evaluate on the validate data
+    validate_err[k] <- sqrt(mean((predict(model, trips_per_day_validate) - trips_per_day_validate$num_trips)^2))
+}
+
+```
+
+
+```{r}
+
+plot_data <- data.frame(K, train_err, validate_err) %>%
+  gather("split", "error", -K)
+
+ggplot(plot_data, aes(x=K, y=error, color=split)) +
+  geom_line() +
+  scale_x_continuous(breaks=K) +
+  xlab('Polynomial Degree') +
+  ylab('RMSE')
+
+```
+
+
+
+```{r}
+
+model <- lm(num_trips ~ poly(tmax, 5, raw = T), data = trips_per_day_train)
+
+trips_per_day_train <- trips_per_day_train %>%
+  add_predictions(model) %>%
+  mutate(split = "train")
+trips_per_day_validate <- trips_per_day_validate %>%
+  add_predictions(model) %>%
+  mutate(split = "validate")
+plot_data <- bind_rows(trips_per_day_train, trips_per_day_validate)
+
+ggplot(plot_data, aes(x = tmin, y = num_trips)) +
+  geom_point(aes(color = split)) +
+  geom_line(aes(y = pred)) +
+  xlab('Minimum temperature') +
+  ylab('Daily trips') +
+  scale_y_continuous()
+
+```
+
+
+```{r}
+
+num_folds <- 5
+num_days <- nrow(trips_per_day)
+
+ndx <- sample(1:num_days, num_train, replace=F)
+
+trips_per_day <- trips_per_day[ndx, ] %>%
+  mutate(fold = (row_number() %% num_folds) + 1)
+
+head(trips_per_day)
+
+```
+
+```{r}
+
+# fit a model for each polynomial degree
+K <- 1:8
+avg_validate_err <- c()
+se_validate_err <- c()
+for (k in K) {
+
+  # do 5-fold cross-validation within each value of k
+  validate_err <- c()
+  for (f in 1:num_folds) {
+    # fit on the training data
+    trips_per_day_train <- filter(trips_per_day, fold != f)
+    model <- lm(num_trips ~ poly(tmax, k, raw = T), data=trips_per_day_train)
+
+    # evaluate on the validation data
+    trips_per_day_validate <- filter(trips_per_day, fold == f)
+    validate_err[f] <- sqrt(mean((predict(model, trips_per_day_validate) - trips_per_day_validate$num_trips)^2))
+  }
+
+  # compute the average validation error across folds
+  # and the standard error on this estimate
+  avg_validate_err[k] <- mean(validate_err)
+  se_validate_err[k] <- sd(validate_err) / sqrt(num_folds)
+}
+
+```
+
+
+```{r}
+
+# plot the validate error, highlighting the value of k with the lowest average error
+plot_data <- data.frame(K, avg_validate_err, se_validate_err)
+ggplot(plot_data, aes(x=K, y=avg_validate_err)) +
+  geom_pointrange(aes(ymin=avg_validate_err - se_validate_err,
+                      ymax=avg_validate_err + se_validate_err,
+                      color=avg_validate_err == min(avg_validate_err))) +
+  geom_line(color = "red") +
+  scale_x_continuous(breaks=1:12) +
+  theme(legend.position="none") +
+  xlab('Polynomial Degree') +
+  ylab('RMSE on validation data')
+
+```
+
+
+# Polynomial degree selected (Degree = 5)
+```{r}
+
+
+# fit on the training data
+model <- lm(num_trips ~ poly(tmin, 5, raw = T), data=trips_per_day_train)
+    
+# evaluate on the training data
+train_err[k] <- sqrt(mean((predict(model, trips_per_day_train) - trips_per_day_train$num_trips)^2))
+
+# evaluate on the validate data
+validate_err[k] <- sqrt(mean((predict(model, trips_per_day_validate) - trips_per_day_validate$num_trips)^2))
+
+
+# Predictions on the validation data
+validate_predictions <- predict(model, trips_per_day_validate)
+
+# Calculate RMSE (Root Mean Squared Error) on the validation set
+validate_err <- sqrt(mean((validate_predictions - trips_per_day_validate$num_trips)^2))
+
+# Display the result
+cat("Validation Error (RMSE):", validate_err, "\n")
+
+
+```
+
+```{r}
+
+# Plot Actual vs Predicted for the Validation Set
+library(ggplot2)
+ggplot(data = trips_per_day_validate, aes(x = validate_predictions, y = num_trips)) +
+  geom_point(aes(color = "red")) +
+  geom_abline()
+
+
+```
+
+```{r}
+
+model <- lm(num_trips ~ poly(tmin, 5, raw = T), data=trips_per_day_train)
+validate_predictions <- predict(model, trips_per_day_validate)
+
+
+head(trips_per_day_validate)
+
+# Ensure that the Date variable is in Date format (if not already)
+trips_per_day_validate$ymd <- as.Date(trips_per_day_validate$ymd)
+
+trips_per_day_validate |>
+    arrange(date)
+
+
+ggplot(trips_per_day_validate, aes(x = ymd)) +
+  geom_point(aes(y = num_trips, color = "Actual")) +
+  geom_line(aes(y = validate_predictions, color = "Predicted"))
+
+```
+
+
+# PART 2
+
+```{r}
+
+trips_per_day_validate
+
+model <- lm(num_trips ~ poly(prcp, 5, raw = T), data=trips_per_day_train)
+validate_predictions <- predict(model, trips_per_day_validate)
+
+validate_r_squared <- cor(validate_predictions, trips_per_day_validate$num_trips)^2
+cat("Validation R-squared:", validate_r_squared, "\n")
+
+library(ggplot2)
+ggplot(data = trips_per_day_validate, aes(x = validate_predictions, y = num_trips)) +
+  geom_point(aes(color = "red")) +
+  geom_line()
+
+```
+
+```{r}
+
+model <- lm(num_trips ~ prcp + snwd + snow + tmax + tmin, data=trips_per_day_train)
+summary(model)
+validate_predictions <- predict(model, trips_per_day_validate)
+
+# Call:
+# lm(formula = num_trips ~ prcp + snwd + snow + tmax + tmin, data = trips_per_day_train)
+
+# Residuals:
+#      Min       1Q   Median       3Q      Max
+# -14911.4  -2646.6    141.8   3190.1  11305.4
+
+# Coefficients:
+#             Estimate Std. Error t value Pr(>|t|)
+# (Intercept) -1092.17    1241.86  -0.879    0.380    
+# prcp        -8136.06     865.17  -9.404  < 2e-16 ***
+# snwd         -448.06      99.45  -4.505 1.05e-05 ***
+# snow          231.34     382.08   0.605    0.545
+# tmax         3259.48     596.67   5.463 1.21e-07 ***
+# tmin         1020.69     654.51   1.559    0.120   
+
+```
+
+
+```{r}
+
+trips_per_day_validate
+
+model <- lm(num_trips ~ tmax*poly(tmax, 5, raw = T) + snwd*poly(snwd, 5, raw = T) + tmax*poly(tmax, 5, raw = TRUE), data = trips_per_day_train)
+
+summary(model)
+validate_predictions <- predict(model, trips_per_day_validate)
+
+validate_r_squared <- cor(validate_predictions, trips_per_day_validate$num_trips)^2
+cat("Validation R-squared:", validate_r_squared, "\n")
+
+library(ggplot2)
+ggplot(data = trips_per_day_validate, aes(x = validate_predictions, y = num_trips)) +
+  geom_point(aes(color = "red")) +
+  geom_line()
+
+
+model <- lm(num_trips ~ poly(prcp, 2, raw = TRUE) + poly(snwd, 2, raw = TRUE) + poly(tmax, 2, raw = TRUE), data = trips_per_day_train)
+
+
+```
+
+
+Most signifcant variables:
+- prcp
+- snwd
+- tmax
+
+
+```{r}
+
+# fit on the training data
+model <- lm(num_trips ~ tmax*poly(tmax, k, raw = T)+prcp+snwd*snow, data=trips_per_day_train)
+summary(model)
+
+# Predictions on the validation data
+validate_predictions <- predict(model, trips_per_day_validate)
+
+# Calculate RMSE (Root Mean Squared Error) on the validation set
+validate_err <- sqrt(mean((validate_predictions - trips_per_day_validate$num_trips)^2))
+cat("Validation Error (RMSE):", validate_err, "\n")
+validate_r_squared <- cor(validate_predictions, trips_per_day_validate$num_trips)^2
+cat("Validation R-squared:", validate_r_squared, "\n")
+
+
+
+# Plot Actual vs Predicted for the Validation Set
+library(ggplot2)
+ggplot(data = trips_per_day_validate, aes(x = validate_predictions, y = num_trips)) +
+  geom_point(aes(color = "red")) +
+  geom_abline()
+
+
+
+```
+
+```{r}
+
+# List of formulas with different combinations of predictors
+formulas <- list(
+  formula1 = num_trips ~ tmax + poly(tmax, 8, raw = T) + prcp + snwd,
+  #0.7710114
+
+  formula2 = num_trips ~ tmax + poly(tmax, 8, raw = T) + prcp*snwd,
+  # 0.7748339
+
+  formula3 = num_trips ~ tmax*poly(tmax, 8, raw = T) + prcp + snwd,
+  
+  formula4 = num_trips ~ tmax + poly(tmax, 8, raw = T) + prcp + snwd,
+  
+  formula5 = num_trips ~ prcp + snwd + poly(tmax, 8, raw = T),
+  
+  formula6 = num_trips ~ tmax + poly(tmax, 8, raw = T) + prcp + snwd + tmax:prcp + tmax:snwd + prcp:snwd
+)
+
+models <- list()
+for (i in 1:length(formulas)) {
+  models[[paste("model", i, sep = "_")]] <- lm(formulas[[i]], data = trips_per_day_train)
+}
+
+lapply(models, summary)
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#    Min     1Q Median     3Q    Max
+# -17506  -2576    160   2930  10845
+
+# Coefficients: (1 not defined because of singularities)
+#                           Estimate Std. Error t value Pr(>|t|)
+# (Intercept)             -1.000e+06  5.643e+05  -1.772  0.07772 .  
+# tmax                     1.954e+06  1.069e+06   1.827  0.06906 .
+# poly(tmax, 8, raw = T)1         NA         NA      NA       NA
+# poly(tmax, 8, raw = T)2 -1.577e+06  8.450e+05  -1.866  0.06331 .
+# poly(tmax, 8, raw = T)3  6.932e+05  3.651e+05   1.899  0.05884 .
+# poly(tmax, 8, raw = T)4 -1.817e+05  9.465e+04  -1.920  0.05615 .
+# poly(tmax, 8, raw = T)5  2.916e+04  1.514e+04   1.926  0.05530 .
+# poly(tmax, 8, raw = T)6 -2.807e+03  1.463e+03  -1.919  0.05627 .
+# poly(tmax, 8, raw = T)7  1.486e+02  7.832e+01   1.898  0.05898 .  
+# poly(tmax, 8, raw = T)8 -3.328e+00  1.784e+00  -1.866  0.06336 .
+# prcp                    -7.245e+03  8.674e+02  -8.353 6.74e-15 ***
+# snwd                    -3.669e+02  1.180e+02  -3.108  0.00212 **
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4326 on 226 degrees of freedom
+# Multiple R-squared:  0.8385,    Adjusted R-squared:  0.8313
+# F-statistic: 117.3 on 10 and 226 DF,  p-value: < 2.2e-16
+
+
+# $model_2
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#      Min       1Q   Median       3Q      Max
+# -17648.1  -2547.8    105.5   2880.2  10579.0
+
+# Coefficients: (1 not defined because of singularities)
+#                           Estimate Std. Error t value Pr(>|t|)
+# (Intercept)             -1.001e+06  5.619e+05  -1.782 0.076138 .
+# tmax                     1.941e+06  1.065e+06   1.823 0.069641 .
+# poly(tmax, 8, raw = T)1         NA         NA      NA       NA
+# poly(tmax, 8, raw = T)2 -1.555e+06  8.416e+05  -1.847 0.065996 .  
+# poly(tmax, 8, raw = T)3  6.785e+05  3.636e+05   1.866 0.063365 .
+# poly(tmax, 8, raw = T)4 -1.767e+05  9.430e+04  -1.874 0.062288 .
+# poly(tmax, 8, raw = T)5  2.819e+04  1.508e+04   1.869 0.062893 .
+# poly(tmax, 8, raw = T)6 -2.701e+03  1.458e+03  -1.852 0.065275 .
+# poly(tmax, 8, raw = T)7  1.424e+02  7.807e+01   1.824 0.069452 .
+# poly(tmax, 8, raw = T)8 -3.177e+00  1.778e+00  -1.786 0.075381 .
+# prcp                    -7.970e+03  9.625e+02  -8.281 1.09e-14 ***
+# snwd                    -4.391e+02  1.249e+02  -3.515 0.000531 ***
+# prcp:snwd                3.617e+02  2.119e+02   1.707 0.089218 .
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4308 on 225 degrees of freedom
+# Multiple R-squared:  0.8406,    Adjusted R-squared:  0.8328
+# F-statistic: 107.8 on 11 and 225 DF,  p-value: < 2.2e-16
+
+
+# $model_3
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#      Min       1Q   Median       3Q      Max
+# -17325.1  -2728.0    190.1   2803.0  10996.7
+
+# Coefficients: (8 not defined because of singularities)
+#                                Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)                  -3.434e+05  1.375e+06  -0.250  0.80295
+# tmax                          5.053e+05  2.964e+06   0.170  0.86479
+# poly(tmax, 8, raw = T)1              NA         NA      NA       NA
+# poly(tmax, 8, raw = T)2      -2.210e+05  2.722e+06  -0.081  0.93536
+# poly(tmax, 8, raw = T)3      -1.550e+04  1.401e+06  -0.011  0.99118    
+# poly(tmax, 8, raw = T)4       4.685e+04  4.463e+05   0.105  0.91650
+# poly(tmax, 8, raw = T)5      -1.814e+04  9.152e+04  -0.198  0.84308
+# poly(tmax, 8, raw = T)6       3.493e+03  1.211e+04   0.288  0.77327
+# poly(tmax, 8, raw = T)7      -3.736e+02  9.997e+02  -0.374  0.70894
+# poly(tmax, 8, raw = T)8       2.119e+01  4.682e+01   0.453  0.65127
+# prcp                         -7.240e+03  8.688e+02  -8.333 7.77e-15 ***
+# snwd                         -3.731e+02  1.188e+02  -3.140  0.00191 **
+# tmax:poly(tmax, 8, raw = T)1         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)2         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)3         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)4         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)5         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)6         NA         NA      NA       NA    
+# tmax:poly(tmax, 8, raw = T)7         NA         NA      NA       NA
+# tmax:poly(tmax, 8, raw = T)8 -4.979e-01  9.502e-01  -0.524  0.60075
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4333 on 225 degrees of freedom
+# Multiple R-squared:  0.8387,    Adjusted R-squared:  0.8308
+# F-statistic: 106.4 on 11 and 225 DF,  p-value: < 2.2e-16
+
+
+# $model_4
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#    Min     1Q Median     3Q    Max
+# -17506  -2576    160   2930  10845
+
+# Coefficients: (1 not defined because of singularities)
+#                           Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)             -1.000e+06  5.643e+05  -1.772  0.07772 .
+# tmax                     1.954e+06  1.069e+06   1.827  0.06906 .
+# poly(tmax, 8, raw = T)1         NA         NA      NA       NA
+# poly(tmax, 8, raw = T)2 -1.577e+06  8.450e+05  -1.866  0.06331 .  
+# poly(tmax, 8, raw = T)3  6.932e+05  3.651e+05   1.899  0.05884 .
+# poly(tmax, 8, raw = T)4 -1.817e+05  9.465e+04  -1.920  0.05615 .
+# poly(tmax, 8, raw = T)5  2.916e+04  1.514e+04   1.926  0.05530 .
+# poly(tmax, 8, raw = T)6 -2.807e+03  1.463e+03  -1.919  0.05627 .
+# poly(tmax, 8, raw = T)7  1.486e+02  7.832e+01   1.898  0.05898 .  
+# poly(tmax, 8, raw = T)8 -3.328e+00  1.784e+00  -1.866  0.06336 .
+# prcp                    -7.245e+03  8.674e+02  -8.353 6.74e-15 ***
+# snwd                    -3.669e+02  1.180e+02  -3.108  0.00212 **
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4326 on 226 degrees of freedom
+# Multiple R-squared:  0.8385,    Adjusted R-squared:  0.8313 
+# F-statistic: 117.3 on 10 and 226 DF,  p-value: < 2.2e-16
+
+
+# $model_5
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#    Min     1Q Median     3Q    Max
+# -17506  -2576    160   2930  10845
+
+# Coefficients:
+#                           Estimate Std. Error t value Pr(>|t|)
+# (Intercept)             -1.000e+06  5.643e+05  -1.772  0.07772 .
+# prcp                    -7.245e+03  8.674e+02  -8.353 6.74e-15 ***
+# snwd                    -3.669e+02  1.180e+02  -3.108  0.00212 **
+# poly(tmax, 8, raw = T)1  1.954e+06  1.069e+06   1.827  0.06906 .
+# poly(tmax, 8, raw = T)2 -1.577e+06  8.450e+05  -1.866  0.06331 .
+# poly(tmax, 8, raw = T)3  6.932e+05  3.651e+05   1.899  0.05884 .
+# poly(tmax, 8, raw = T)4 -1.817e+05  9.465e+04  -1.920  0.05615 .
+# poly(tmax, 8, raw = T)5  2.916e+04  1.514e+04   1.926  0.05530 .  
+# poly(tmax, 8, raw = T)6 -2.807e+03  1.463e+03  -1.919  0.05627 .
+# poly(tmax, 8, raw = T)7  1.486e+02  7.832e+01   1.898  0.05898 .
+# poly(tmax, 8, raw = T)8 -3.328e+00  1.784e+00  -1.866  0.06336 .
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4326 on 226 degrees of freedom
+# Multiple R-squared:  0.8385,    Adjusted R-squared:  0.8313
+# F-statistic: 117.3 on 10 and 226 DF,  p-value: < 2.2e-16
+
+
+# $model_6
+
+# Call:
+# lm(formula = formulas[[i]], data = trips_per_day_train)
+
+# Residuals:
+#      Min       1Q   Median       3Q      Max
+# -17711.7  -2453.3    300.5   2800.6  10430.7
+
+# Coefficients: (1 not defined because of singularities)
+#                           Estimate Std. Error t value Pr(>|t|)  
+# (Intercept)             -1.080e+06  5.726e+05  -1.886   0.0606 .
+# tmax                     2.080e+06  1.084e+06   1.918   0.0563 .
+# poly(tmax, 8, raw = T)1         NA         NA      NA       NA
+# poly(tmax, 8, raw = T)2 -1.658e+06  8.565e+05  -1.936   0.0541 .
+# poly(tmax, 8, raw = T)3  7.207e+05  3.700e+05   1.948   0.0527 .
+# poly(tmax, 8, raw = T)4 -1.870e+05  9.595e+04  -1.949   0.0526 .
+# poly(tmax, 8, raw = T)5  2.973e+04  1.535e+04   1.938   0.0539 .
+# poly(tmax, 8, raw = T)6 -2.839e+03  1.483e+03  -1.915   0.0568 .
+# poly(tmax, 8, raw = T)7  1.493e+02  7.938e+01   1.881   0.0613 .
+# poly(tmax, 8, raw = T)8 -3.324e+00  1.808e+00  -1.838   0.0673 .
+# prcp                    -1.143e+04  4.626e+03  -2.470   0.0142 *
+# snwd                     8.543e+01  5.281e+02   0.162   0.8716
+# tmax:prcp                5.294e+02  7.058e+02   0.750   0.4540
+# tmax:snwd               -1.456e+02  1.399e+02  -1.041   0.2989
+# prcp:snwd                5.163e+02  2.874e+02   1.796   0.0738 .
+# ---
+# Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+# Residual standard error: 4312 on 223 degrees of freedom
+# Multiple R-squared:  0.8417,    Adjusted R-squared:  0.8324 
+# F-statistic: 91.19 on 13 and 223 DF,  p-value: < 2.2e-16
+
+```
+
+
+
+# FINAL MODEL WITH PLOTS
+```{r}
+
+model_tmax_prcp_snow <- lm(num_trips ~ 
+                            tmax * poly(tmax, 4, raw = TRUE) + 
+                            prcp * poly(prcp, 4, raw = TRUE) + 
+                            snwd * poly(snwd, 3, raw = TRUE) + 
+                            tmin * poly(tmin, 3, raw = TRUE) + 
+                            prcp * snwd + 
+                            prcp * snow + 
+                            snwd * snow + 
+                            tmin * prcp + 
+                            tmax * prcp + 
+                            factor(day_of_week) +
+                            factor(month),
+                            data = trips_per_day_train)
+validate_prediction <- predict(model_tmax_prcp_snow, trips_per_day_validate)
+ 
+ggplot(trips_per_day_validate, aes(x=validate_prediction, y=num_trips)) +
+geom_point(aes(color="Actual")) +
+geom_abline()
+ 
+validate_r_squared <- cor(validate_prediction, trips_per_day_validate$num_trips)^2
+validate_r_squared
+# evaluate on the training data
+train_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_train) - trips_per_day_train$num_trips)^2))
+train_err
+# evaluate on the validate data
+validate_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_validate) - trips_per_day_validate$num_trips)^2))
+validate_err
+
+trips_per_day_validate$ymd <- as.Date(trips_per_day_validate$ymd)
+
+trips_per_day_validate |>
+    arrange(date)
+
+
+ggplot(trips_per_day_validate, aes(x = ymd)) +
+  geom_point(aes(y = num_trips, color = "Actual")) +
+  geom_line(aes(y = validate_predictions, color = "Predicted"))
+
+
+trips_per_day_train
+
+
+```
+
+
+<!-- > validate_r_squared
+[1] 0.8774909
+> # evaluate on the training data
+> train_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_train) -$
+> train_err
+[1] 2989.77
+> # evaluate on the validate data
+> validate_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_valid$
+> validate_err
+[1] 3435.217 -->
+
+
+
+```{r}
+
+save(model_tmax_prcp_snow, file = "predict_citibike.RData")
+
+```
+
+
