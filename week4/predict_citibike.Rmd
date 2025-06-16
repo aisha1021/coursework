@@ -679,3 +679,26 @@ save(model_tmax_prcp_snow, file = "predict_citibike.RData")
 ```
 
 
+# Predict on Test Dataset
+
+```{r}
+
+test_prediction <- predict(model_tmax_prcp_snow, trips_per_day_test)
+
+test_r_squared <- cor(test_prediction, trips_per_day_test$num_trips)^2
+test_r_squared
+# evaluate on the training data
+test_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_test) - trips_per_day_test$num_trips)^2))
+test_err
+
+ggplot(trips_per_day_test, aes(x=test_prediction, y=num_trips)) +
+geom_point(aes(color="Actual")) +
+geom_abline()
+
+```
+
+<!-- > test_r_squared
+[1] 0.8512338
+> test_err
+[1] 3686.657 -->
+
