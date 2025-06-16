@@ -671,6 +671,18 @@ trips_per_day_train
 [1] 3435.217 -->
 
 
+<!-- > validate_r_squared
+[1] 0.9266497
+> # evaluate on the training data
+> train_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_train) -$
+> train_err
+[1] 2800.001
+> # evaluate on the validate data
+> validate_err <- sqrt(mean((predict(model_tmax_prcp_snow, trips_per_day_valid$
+> validate_err
+[1] 2612.048 -->
+
+
 
 ```{r}
 
