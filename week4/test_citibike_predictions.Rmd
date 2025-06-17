@@ -1,0 +1,56 @@
+
+
+```{r}
+
+library(tidyverse)
+
+trips_per_day_2015 <- read_tsv("C:\\Users\\ds3\\coursework\\week4\\trips_per_day_2015.tsv")
+trips_per_day_2015
+
+weather_2015 <- read_csv("C:\\Users\\ds3\\coursework\\week4\\weather_2015.csv")
+weather_2015
+
+weather_2015 <- weather_2015 |> select("DATE", "PRCP", "SNOW", "SNWD", "TMIN", "TMAX")
+
+test_citibike_2015 <- left_join(trips_per_day_2015, weather_2015, by = c("ymd" = "DATE"))
+test_citibike_2015
+
+test_citibike_2015 <- test_citibike_2015 |>
+    rename(prcp = PRCP, snow = SNOW, snwd = SNWD, tmin = TMIN, tmax = TMAX)
+test_citibike_2015
+
+# Convert the ymd column to Date type if it is not already
+test_citibike_2015$ymd <- as.Date(test_citibike_2015$ymd)
+test_citibike_2015$day_of_week <- weekdays(test_citibike_2015$ymd)
+test_citibike_2015$month <- format(test_citibike_2015$ymd, "%m")
+test_citibike_2015$week_of_year <- format(test_citibike_2015$ymd, "%U")
+
+head(test_citibike_2015)
+
+sum(is.na(test_2015_prediction))
+```
+
+# LOAD MODEL
+
+```{r}
+
+library(modelr)
+
+model <- readRDS("C:\\Users\\ds3\\coursework\\week4\\predict_citibike.RDS")
+summary(model)
+
+test_2015_prediction <- predict(model, test_citibike_2015)
+
+# remove rows where either prediction or actual values are NA
+complete_cases <- complete.cases(test_2015_prediction, test_citibike_2015$num_trips)
+test_2015_prediction <- test_2015_prediction[complete_cases]
+test_citibike_2015 <- test_citibike_2015[complete_cases, ]
+
+test_2015_r_squared <- cor(test_2015_prediction, test_citibike_2015$num_trips)^2
+test_2015_r_squared
+# evaluate on the training data
+test_2015_err <- sqrt(mean((predict(model, test_citibike_2015) - test_citibike_2015$num_trips)^2))
+test_2015_err
+
+```
+
