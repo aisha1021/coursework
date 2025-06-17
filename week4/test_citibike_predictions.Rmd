@@ -16,7 +16,9 @@ test_citibike_2015 <- left_join(trips_per_day_2015, weather_2015, by = c("ymd" =
 test_citibike_2015
 
 test_citibike_2015 <- test_citibike_2015 |>
-    rename(prcp = PRCP, snow = SNOW, snwd = SNWD, tmin = TMIN, tmax = TMAX)
+    rename(prcp = PRCP, snow = SNOW, snwd = SNWD, tmin = TMIN, tmax = TMAX) |>
+    mutate(tmax = tmax / 10) |>
+    mutate(tmin = tmin / 10)
 test_citibike_2015
 
 # Convert the ymd column to Date type if it is not already
